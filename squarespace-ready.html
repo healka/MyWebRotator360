@@ -2,15 +2,12 @@
     SQUARESPACE READY-TO-USE CODE
     Copy this entire file into a Squarespace Code Block
     
-    IMAGES ALREADY HOSTED VIA jsDelivr:
-    • 36 frames (00000.png – 00035.png)
-    • CDN path: https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/
-    
-    QUICK STEPS:
-    1. Copy everything in this file
-    2. Paste into a Squarespace Code Block
-    3. Save and publish – no other edits required
-    4. Optional: to swap a different product later, change the cdnImagePath constant near the bottom
+    INSTRUCTIONS:
+    1. Upload your 36 images (00000.png through 00035.png) to Squarespace (Settings → Files)
+    2. Click on one image to see its URL - it will be like: https://yoursite.squarespace.com/s/00000.png
+    ​3. Copy the base URL (everything before the filename): https://yoursite.squarespace.com/s/
+    4. Replace 'YOUR_SQUARESPACE_URL_HERE' below with your actual base URL
+    5. Paste this entire code into a Code Block on your Squarespace page
 -->
 
 <style>
@@ -228,16 +225,16 @@
     }
 
     // ============================================
-    // CONFIGURATION - UPDATE THIS SECTION
+    // CONFIGURATION - READY TO USE!
     // ============================================
     
     // Wait for DOM to be ready
     function initRotator() {
-        const cdnImagePath = 'https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/';
-
         window.rotator360 = new Rotator360Embed({
             containerId: 'rotator360-embed',
-            imagePath: cdnImagePath,
+
+            // GitHub + jsDelivr CDN configuration (pre-configured)
+            imagePath: 'https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/',
             imageFormat: 'png',
             totalFrames: 36,
             startFrame: 0,
@@ -256,10 +253,15 @@
 </script>
 
 <!-- 
-    QUICK SETUP CHECKLIST:
-    ✓ Images are already hosted at https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/
-    ✓ Paste this block into a Squarespace Code Block
-    ✓ Save the page and test (drag to rotate)
-    ✓ To swap products later, change the cdnImagePath constant above
+    READY TO USE! Just copy and paste this entire file into a Squarespace Code Block.
+    
+    Configuration:
+    - Images hosted on GitHub: https://github.com/healka/rotator-assets
+    - CDN: jsDelivr (https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/)
+    - 36 frames: 00000.png through 00035.png
+    
+    To use a different product:
+    - Update the imagePath to point to a different folder in your GitHub repo
+    - Example: 'https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/ProductName/'
 -->
 

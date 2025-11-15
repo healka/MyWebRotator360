@@ -8,8 +8,9 @@ const rotator = new Rotator360({
     containerId: 'rotator360',
     
     // Base path to your images (without the frame number)
-    // Example: jsDelivr CDN hosting the AspenTest frames on GitHub
-    imagePath: 'https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/',
+    // For local files: 'images/' (will load images/00000.png, images/00001.png, etc.)
+    // For Squarespace: 'https://yoursite.squarespace.com/s/' (will load .../s/00000.png, etc.)
+    imagePath: 'images/',
     
     // Image file format
     imageFormat: 'png',
@@ -34,12 +35,25 @@ const rotator = new Rotator360({
 /**
  * SQUARESPACE EXAMPLE:
  * 
- * Host once on GitHub, then use jsDelivr:
- * imagePath: 'https://cdn.jsdelivr.net/gh/<username>/rotator-assets@main/<FolderName>/',
+ * If your images on Squarespace are:
+ * - https://yoursite.squarespace.com/s/00000.png
+ * - https://yoursite.squarespace.com/s/00001.png
+ * - etc.
+ * 
+ * Use this configuration in squarespace-embed.html:
+ * 
+ * imagePath: 'https://yoursite.squarespace.com/s/',
  * imageFormat: 'png',
  * totalFrames: 36,
  * startFrame: 0,
  * framePadding: 5,
  * useUnderscore: false
+ *
+ * // Alternatively, supply explicit URLs when each asset has a unique path:
+ * frameUrls: [
+ *   'https://images.squarespace-cdn.com/content/.../00000.png?content-type=image%2Fpng',
+ *   'https://images.squarespace-cdn.com/content/.../00001.png?content-type=image%2Fpng',
+ *   // ... add all frames in order
+ * ]
  */
 

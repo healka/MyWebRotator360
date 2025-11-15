@@ -1,12 +1,18 @@
 <!-- 
-    SQUARESPACE EMBED CODE
-    Copy this entire file content into a Squarespace Code Block
+    ============================================
+    360° IMAGE ROTATOR - SQUARESPACE READY
+    ============================================
     
     INSTRUCTIONS:
-    1. Upload your 360° images to Squarespace (Settings → Files)
-    2. Note the URL pattern of your images
-    3. Replace the configuration values below (marked with "CHANGE THIS")
-    4. Paste this entire code into a Code Block on your Squarespace page
+    1. Copy this ENTIRE file content
+    2. In Squarespace: Edit page → Add Block → Code
+    3. Paste the entire content
+    4. Save and preview
+    
+    That's it! No editing needed - it's pre-configured with your GitHub images.
+    
+    Images: https://github.com/healka/rotator-assets/tree/main/AspenTest
+    CDN: https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/
 -->
 
 <style>
@@ -224,7 +230,7 @@
     }
 
     // ============================================
-    // CONFIGURATION - UPDATE THESE VALUES
+    // CONFIGURATION - PRE-CONFIGURED & READY!
     // ============================================
     
     // Wait for DOM to be ready
@@ -232,7 +238,7 @@
         window.rotator360 = new Rotator360Embed({
             containerId: 'rotator360-embed',
 
-            // GitHub + jsDelivr CDN configuration (pre-configured)
+            // GitHub + jsDelivr CDN configuration
             imagePath: 'https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/',
             imageFormat: 'png',
             totalFrames: 36,
@@ -251,13 +257,4 @@
 })();
 </script>
 
-<!-- 
-    USAGE NOTES:
-    - Make sure your images are named sequentially: product_001.jpg, product_002.jpg, etc.
-    - Update imagePath to match your Squarespace file URLs
-    - Adjust totalFrames to match your number of images
-    - Adjust framePadding if your images use different naming (e.g., 01, 02 vs 001, 002)
-    - Adjust padding-bottom in CSS to change aspect ratio
-    - Adjust rotation sensitivity (0.5 value in handleMove) for faster/slower rotation
--->
 

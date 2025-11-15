@@ -40,23 +40,28 @@
 
     <script src="rotator.js"></script>
     <script>
-        // Initialize the rotator for images named 00000.png, 00001.png, etc.
-        const cdnImagePath = 'https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/';
-
+        // Initialize the rotator - using GitHub + jsDelivr CDN
         const rotator = new Rotator360({
             containerId: 'rotator360',
-            imagePath: cdnImagePath, // CDN base path for images
-            imageFormat: 'png', // Your image format
-            totalFrames: 36, // Number of images (you have 00000.png through 00035.png)
-            startFrame: 0, // Start at 0 for 00000.png
-            framePadding: 5, // 5 digits: 00000, 00001, etc.
-            useUnderscore: false, // No underscore: 00000.png (not product_00000.png)
+            imagePath: 'https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/', // GitHub CDN
+            imageFormat: 'png',
+            totalFrames: 36,
+            startFrame: 0,
+            framePadding: 5,
+            useUnderscore: false,
             autoRotate: false,
-            autoRotateSpeed: 0.5 // Rotation speed (0.1 - 2.0)
+            autoRotateSpeed: 0.5
         });
         
         // Debug: Log configuration
-        console.log('Rotator360 initialized with CDN path:', cdnImagePath);
+        console.log('Rotator360 initialized with:', {
+            imagePath: 'https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/',
+            imageFormat: 'png',
+            totalFrames: 36,
+            startFrame: 0,
+            framePadding: 5,
+            useUnderscore: false
+        });
     </script>
 </body>
 </html>
