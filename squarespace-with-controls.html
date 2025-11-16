@@ -1,0 +1,408 @@
+<!-- 
+    360° IMAGE ROTATOR - SQUARESPACE BLOCK WITH CONTROLS
+    Copy-paste this entire file into a Squarespace Code Block.
+    Then, adjust the CONFIG section near the bottom.
+-->
+
+<style>
+    /* Container */
+    .rotator-360-embed {
+        position: relative;
+        width: 100%;
+        padding-bottom: 75%; /* 4:3; change to 56.25% for 16:9, 100% for square */
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        cursor: grab;
+        user-select: none;
+        touch-action: none;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        margin: 20px 0 10px 0;
+    }
+    .rotator-360-embed:active { cursor: grabbing; }
+
+    .rotator-360-embed img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        transition: opacity 0.1s ease;
+        will-change: opacity;
+    }
+
+    .rotator-overlay-embed {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.92);
+        z-index: 10;
+        transition: opacity 0.3s ease;
+    }
+    .rotator-overlay-embed.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+    .loading-indicator-embed {
+        font-size: 1.1em;
+        color: #667eea;
+        font-weight: 600;
+        letter-spacing: .3px;
+    }
+
+    /* Controls */
+    .rotator-controls-embed {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 8px 0 6px 0;
+    }
+    .rotator-btn-embed {
+        padding: 10px 16px;
+        background: #667eea;
+        color: #fff;
+        border: none;
+        border-radius: 22px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all .2s ease;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+    }
+    .rotator-btn-embed:hover {
+        background: #5568d3;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(102, 126, 234, 0.45);
+    }
+    .rotator-btn-embed:active {
+        transform: translateY(0);
+    }
+    .rotator-btn-embed.active {
+        background: #48bb78;
+        box-shadow: 0 4px 12px rgba(72, 187, 120, 0.35);
+    }
+    .rotator-info-embed {
+        font-size: 13px;
+        color: #555;
+        min-width: 110px;
+        text-align: center;
+        padding: 6px 10px;
+        border-radius: 14px;
+        background: #f1f5f9;
+    }
+</style>
+
+<div class="rotator-360-embed" id="rotator360-embed" aria-label="360 degree product viewer">
+    <img id="rotatorImage-embed" src="" alt="360 Product View">
+    <div class="rotator-overlay-embed">
+        <div class="loading-indicator-embed">Loading...</div>
+    </div>
+</div>
+<div class="rotator-controls-embed" aria-label="360 viewer controls">
+    <button class="rotator-btn-embed" id="autoRotateBtn-embed" type="button">Auto Rotate</button>
+    <button class="rotator-btn-embed" id="resetBtn-embed" type="button">Reset</button>
+    <div class="rotator-info-embed" id="frameInfo-embed">Frame —</div>
+    <!-- Optional: speed control (uncomment to use)
+    <label class="rotator-info-embed" style="background: transparent; box-shadow:none;">
+        Speed
+        <input id="speedInput-embed" type="range" min="0.2" max="2" step="0.1" value="0.5" style="vertical-align:middle;">
+    </label>
+    -->
+  </div>
+
+<script>
+(function() {
+    'use strict';
+
+    class Rotator360Embed {
+        constructor(options) {
+            this.containerId = options.containerId || 'rotator360-embed';
+            this.frameUrls = Array.isArray(options.frameUrls) ? options.frameUrls.filter(Boolean) : null;
+            this.usesFrameUrls = Array.isArray(this.frameUrls) && this.frameUrls.length > 0;
+            this.imagePath = options.imagePath || 'images/product';
+            this.imageFormat = options.imageFormat || 'jpg';
+            this.framePadding = options.framePadding || 3;
+            this.useUnderscore = options.useUnderscore !== undefined ? options.useUnderscore : true;
+            this.totalFrames = this.usesFrameUrls ? (options.totalFrames || this.frameUrls.length) : (options.totalFrames || 36);
+            this.startFrame = options.startFrame !== undefined ? options.startFrame : (this.usesFrameUrls ? 0 : 1);
+
+            this.autoRotateSpeed = options.autoRotateSpeed || 0.5; // degrees per tick (~16ms)
+
+            this.container = document.getElementById(this.containerId);
+            this.imageElement = this.container.querySelector('img');
+            this.overlay = this.container.querySelector('.rotator-overlay-embed');
+            this.currentFrame = this.startFrame;
+
+            this.isDragging = false;
+            this.startX = 0;
+            this.lastX = 0;
+            this.rotation = 0;
+            this.images = [];
+
+            // Controls
+            this.autoRotateInterval = null;
+            this.autoRotateBtn = document.getElementById('autoRotateBtn-embed');
+            this.resetBtn = document.getElementById('resetBtn-embed');
+            this.frameInfo = document.getElementById('frameInfo-embed');
+            this.speedInput = document.getElementById('speedInput-embed'); // optional
+
+            // Momentum/inertia
+            this.velocityX = 0;
+            this.lastMoveTs = 0;
+            this.momentumId = 0;
+
+            this.init();
+        }
+
+        init() {
+            if (!this.container || !this.imageElement) {
+                console.error('Rotator360: Container not found');
+                return;
+            }
+            this.preloadImages();
+            this.setupEventListeners();
+            this.setupControls();
+            this.updateFrameInfo();
+        }
+
+        preloadImages() {
+            let loadedCount = 0;
+            const totalImages = this.totalFrames;
+            for (let index = 0; index < totalImages; index++) {
+                const frameNumber = this.startFrame + index;
+                const imageUrl = this.getImageUrl(frameNumber);
+                const img = new Image();
+                if (!imageUrl) {
+                    this.images.push(null);
+                    continue;
+                }
+                img.src = imageUrl;
+                img.onload = () => {
+                    loadedCount++;
+                    if (loadedCount === totalImages && this.overlay) {
+                        this.overlay.classList.add('hidden');
+                    }
+                };
+                img.onerror = () => {
+                    loadedCount++;
+                    if (loadedCount === totalImages && this.overlay) {
+                        this.overlay.classList.add('hidden');
+                    }
+                };
+                this.images.push(img);
+            }
+            this.updateImage(this.startFrame);
+        }
+
+        setupEventListeners() {
+            this.container.addEventListener('mousedown', (e) => this.handleStart(e));
+            document.addEventListener('mousemove', (e) => this.handleMove(e));
+            document.addEventListener('mouseup', (e) => this.handleEnd(e));
+            this.container.addEventListener('touchstart', (e) => this.handleStart(e), { passive: false });
+            document.addEventListener('touchmove', (e) => this.handleMove(e), { passive: false });
+            document.addEventListener('touchend', (e) => this.handleEnd(e));
+            this.container.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+
+        setupControls() {
+            if (this.autoRotateBtn) {
+                this.autoRotateBtn.addEventListener('click', () => this.toggleAutoRotate());
+            }
+            if (this.resetBtn) {
+                this.resetBtn.addEventListener('click', () => this.resetRotation());
+            }
+            if (this.speedInput) {
+                this.speedInput.addEventListener('input', () => {
+                    const v = parseFloat(this.speedInput.value);
+                    if (!isNaN(v)) this.autoRotateSpeed = v;
+                });
+            }
+        }
+
+        handleStart(e) {
+            this.isDragging = true;
+            this.stopAutoRotate();
+            this.cancelMomentum();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            this.startX = clientX;
+            this.lastX = clientX;
+            this.lastMoveTs = performance.now();
+            this.container.style.cursor = 'grabbing';
+            e.preventDefault();
+        }
+
+        handleMove(e) {
+            if (!this.isDragging) return;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const deltaX = clientX - this.lastX;
+            const now = performance.now();
+            const dt = Math.max(1, now - this.lastMoveTs); // ms
+            this.velocityX = deltaX / dt; // px per ms
+            this.lastMoveTs = now;
+
+            this.lastX = clientX;
+            const sensitivity = 0.5;
+            this.rotation += deltaX * sensitivity;
+            this.updateFrameFromRotation();
+            e.preventDefault();
+        }
+
+        handleEnd() {
+            if (!this.isDragging) return;
+            this.isDragging = false;
+            this.container.style.cursor = 'grab';
+            this.applyMomentum();
+        }
+
+        applyMomentum() {
+            // Simple exponential decay on velocity (infinite screen drag not needed; we track on document)
+            // Converts velocity to rotation delta per frame
+            const sensitivity = 0.5;
+            let vx = this.velocityX; // px/ms
+            const decay = 0.95; // 0..1 lower = quicker stop
+            const minAbs = 0.0015; // stop threshold
+            const step = () => {
+                vx *= decay;
+                if (Math.abs(vx) < minAbs) {
+                    this.momentumId = 0;
+                    return;
+                }
+                // Assume ~16ms per frame
+                const px = vx * 16;
+                this.rotation += px * sensitivity;
+                this.updateFrameFromRotation();
+                this.momentumId = requestAnimationFrame(step);
+            };
+            this.momentumId = requestAnimationFrame(step);
+        }
+
+        cancelMomentum() {
+            if (this.momentumId) {
+                cancelAnimationFrame(this.momentumId);
+                this.momentumId = 0;
+            }
+        }
+
+        updateFrameFromRotation() {
+            const normalizedRotation = ((this.rotation % 360) + 360) % 360;
+            const frameIndex = Math.round((normalizedRotation / 360) * this.totalFrames);
+            let targetFrame = (frameIndex % this.totalFrames) + this.startFrame;
+            if (targetFrame >= this.startFrame + this.totalFrames) {
+                targetFrame = this.startFrame;
+            }
+            if (targetFrame !== this.currentFrame) {
+                this.currentFrame = targetFrame;
+                this.updateImage(targetFrame);
+                this.updateFrameInfo();
+            }
+        }
+
+        updateImage(frameNumber) {
+            const minFrame = this.startFrame;
+            const maxFrame = this.startFrame + this.totalFrames - 1;
+            if (frameNumber < minFrame || frameNumber > maxFrame) return;
+            const imageUrl = this.getImageUrl(frameNumber);
+            const arrayIndex = frameNumber - this.startFrame;
+            const preloadedImg = this.images[arrayIndex];
+            if (preloadedImg && preloadedImg.complete) {
+                this.imageElement.src = preloadedImg.src;
+            } else if (imageUrl) {
+                this.imageElement.src = imageUrl;
+            }
+        }
+
+        updateFrameInfo() {
+            if (!this.frameInfo) return;
+            const idx = (this.currentFrame - this.startFrame) + 1;
+            this.frameInfo.textContent = `Frame ${idx} / ${this.totalFrames}`;
+        }
+
+        getImageUrl(frameNumber) {
+            if (this.usesFrameUrls) {
+                const index = frameNumber - this.startFrame;
+                return this.frameUrls && this.frameUrls[index] ? this.frameUrls[index] : null;
+            }
+            const frameNum = String(frameNumber).padStart(this.framePadding, '0');
+            const separator = this.useUnderscore ? '_' : '';
+            return `${this.imagePath}${separator}${frameNum}.${this.imageFormat}`;
+        }
+
+        // Controls API
+        toggleAutoRotate() {
+            if (this.autoRotateInterval) {
+                this.stopAutoRotate();
+            } else {
+                this.startAutoRotate();
+            }
+        }
+        startAutoRotate() {
+            this.stopAutoRotate();
+            if (this.autoRotateBtn) {
+                this.autoRotateBtn.classList.add('active');
+                this.autoRotateBtn.textContent = 'Stop Auto Rotate';
+            }
+            this.autoRotateInterval = setInterval(() => {
+                this.rotation += this.autoRotateSpeed;
+                this.updateFrameFromRotation();
+            }, 16); // ~60fps
+        }
+        stopAutoRotate() {
+            if (this.autoRotateInterval) {
+                clearInterval(this.autoRotateInterval);
+                this.autoRotateInterval = null;
+                if (this.autoRotateBtn) {
+                    this.autoRotateBtn.classList.remove('active');
+                    this.autoRotateBtn.textContent = 'Auto Rotate';
+                }
+            }
+        }
+        resetRotation() {
+            this.stopAutoRotate();
+            this.cancelMomentum();
+            this.rotation = 0;
+            this.currentFrame = this.startFrame;
+            this.updateImage(this.startFrame);
+            this.updateFrameInfo();
+        }
+    }
+
+    // =========================
+    // CONFIGURATION (EDIT THIS)
+    // =========================
+    function initRotator() {
+        window.rotator360 = new Rotator360Embed({
+            containerId: 'rotator360-embed',
+            // Option A: base path pattern (recommended)
+            imagePath: 'https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/',
+            imageFormat: 'png',
+            totalFrames: 36,
+            startFrame: 0,
+            framePadding: 5,
+            useUnderscore: false,
+            // Auto-rotate speed (degrees per ~16ms)
+            autoRotateSpeed: 0.5
+
+            // Option B: explicit URLs array (uncomment to use)
+            // frameUrls: [
+            //   'https://.../00000.png', 'https://.../00001.png', /* ... */ 'https://.../00035.png'
+            // ],
+            // totalFrames: 36,
+            // startFrame: 0
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initRotator);
+    } else {
+        initRotator();
+    }
+})();
+</script>
+
+
