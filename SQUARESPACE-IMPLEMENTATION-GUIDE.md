@@ -1,574 +1,342 @@
-# Complete Squarespace Implementation Guide
+# Squarespace Implementation Guide - 360° Image Rotator
 
-## 🎯 Quick Start (3 Methods)
+## 🎯 Quick Start
 
-Choose the method that works best for your situation:
+Your 360° rotator is ready to use! Just copy, configure, and paste into Squarespace.
 
-- **Method 1**: Images uploaded to Squarespace (same URL pattern)
-- **Method 2**: Images in Squarespace Asset Library (unique URLs each)
-- **Method 3**: Images hosted externally (CDN, GitHub, etc.)
-
----
-
-## Method 1: Images on Squarespace (Same URL Pattern)
-
-**Best for:** Images uploaded to Squarespace that share a common URL pattern
-
-### Step 1: Upload Your Images
-
-1. Log into Squarespace
-2. Go to **Settings → Files**
-3. Upload all your 360° images (e.g., `00000.png`, `00001.png`, ... `00035.png`)
-4. After uploading, click on **one image** to see its URL
-5. The URL will look like: `https://yoursite.squarespace.com/s/00000.png`
-6. **Copy the base URL** (everything before the filename): `https://yoursite.squarespace.com/s/`
-
-### Step 2: Get the Code
-
-1. Open `squarespace-ready.html` in your project
-2. Copy the **entire content** of the file
-
-### Step 3: Configure the Code
-
-Find this section in the code (around line 236-247):
-
-```javascript
-window.rotator360 = new Rotator360Embed({
-    containerId: 'rotator360-embed',
-    
-    // CHANGE THESE VALUES:
-    imagePath: 'https://yoursite.squarespace.com/s/',  // ← Your base URL here
-    imageFormat: 'png',                                 // ← jpg, png, or webp
-    totalFrames: 36,                                    // ← Number of images
-    startFrame: 0,                                      // ← 0 for 00000, 1 for 001
-    framePadding: 5,                                    // ← 5 for 00000, 3 for 001
-    useUnderscore: false                                // ← false for 00000.png, true for product_001.jpg
-});
-```
-
-**Update these values:**
-- `imagePath`: Your Squarespace base URL
-- `imageFormat`: Your image format (png, jpg, webp)
-- `totalFrames`: Number of images you have
-- `startFrame`: Starting number (0 for 00000, 1 for 001)
-- `framePadding`: Number of digits (5 for 00000, 3 for 001)
-- `useUnderscore`: `false` for `00000.png`, `true` for `product_001.jpg`
-
-### Step 4: Add to Squarespace
-
-1. Edit the page where you want the rotator
-2. Click **Add Block** → **Code**
-3. Paste the entire code (with your configuration)
-4. Click **Save**
-5. Preview your page
+### Features Included
+- ✅ Drag to rotate (works even when cursor leaves screen)
+- ✅ Momentum/inertia effect after drag
+- ✅ Auto Rotate button with speed control
+- ✅ Reset button
+- ✅ Frame counter (Frame X / Y)
+- ✅ Multiple instances support (add as many as you want on one page)
+- ✅ Mobile-friendly (touch swipe support)
 
 ---
 
-## Method 2: Squarespace Asset Library (Unique URLs)
+## Step 1: Prepare Your Images
 
-**Best for:** When each image has a completely different URL path
+You need a series of images showing your product from different angles (typically 36 images for a full 360° rotation).
 
-### Step 1: Upload Images to Squarespace
+### Image Requirements
+- **Sequential naming**: Images should be numbered (e.g., `00000.png`, `00001.png`, ... `00035.png`)
+- **Same format**: All images should be the same format (PNG, JPG, or WebP)
+- **Consistent size**: All images should have the same dimensions
+- **Even angles**: Images should be evenly spaced (36 images = 10° per image)
 
-1. Go to **Settings → Files**
+### Where to Host Images
+
+Choose one of these options:
+
+#### Option A: Upload to Squarespace (Recommended)
+1. Go to **Settings → Files** in Squarespace
 2. Upload all your 360° images
-3. **Important:** Keep them in the same folder if possible
+3. Click on one image to see its URL
+4. Note the URL pattern (e.g., `https://yoursite.squarespace.com/s/00000.png`)
 
-### Step 2: Get All Image URLs
-
-#### Option A: Manual Method
-1. Click on each image in Squarespace
-2. Copy its URL
-3. Paste into an array (see Step 3)
-
-#### Option B: Bulk Copy Method (Recommended)
-1. Open your Asset Library folder with all images
-2. Press **F12** to open Developer Tools
-3. Go to the **Console** tab
-4. Paste this script and press Enter:
-
-```javascript
-(async () => {
-  const buttons = [...document.querySelectorAll('[data-clipboard-text]')];
-  const urls = buttons
-    .map(btn => btn.getAttribute('data-clipboard-text'))
-    .filter(url => /\d{5}\.png/i.test(url) || /\d{3}\.jpg/i.test(url)) // Adjust regex for your naming
-    .sort((a, b) => a.localeCompare(b));
-  const json = JSON.stringify(urls, null, 2);
-  console.log(json);
-  try {
-    await navigator.clipboard.writeText(json);
-    console.log('✅ Copied to clipboard!');
-  } catch (err) {
-    console.warn('Copy failed:', err);
-  }
-})();
-```
-
-5. The URLs will be copied to your clipboard as a JSON array
-
-### Step 3: Configure with Explicit URLs
-
-Open `squarespace-ready.html` and find the configuration section. Replace it with:
-
-```javascript
-window.rotator360 = new Rotator360Embed({
-    containerId: 'rotator360-embed',
-    
-    // Use explicit URLs instead of imagePath
-    frameUrls: [
-        'https://images.squarespace-cdn.com/content/.../00000.png?content-type=image%2Fpng',
-        'https://images.squarespace-cdn.com/content/.../00001.png?content-type=image%2Fpng',
-        'https://images.squarespace-cdn.com/content/.../00002.png?content-type=image%2Fpng',
-        // ... paste all your URLs here in order
-        'https://images.squarespace-cdn.com/content/.../00035.png?content-type=image%2Fpng'
-    ],
-    
-    // Optional: specify totalFrames (will auto-detect from frameUrls length)
-    totalFrames: 36,
-    startFrame: 0
-});
-```
-
-**Important:** Make sure URLs are in the correct order (00000, 00001, 00002, etc.)
-
-### Step 4: Add to Squarespace
-
-1. Edit your page
-2. Add a **Code Block**
-3. Paste the entire code
-4. Save and preview
+#### Option B: Use External CDN (GitHub, Cloudinary, etc.)
+- GitHub + jsDelivr: `https://cdn.jsdelivr.net/gh/username/repo@main/folder/`
+- Your own CDN or server
 
 ---
 
-## Method 3: External Hosting (CDN, GitHub, etc.)
+## Step 2: Get the Code
 
-**Best for:** Images hosted on GitHub, CDN, or external server
+1. Open the file: **`squarespace-with-controls.html`**
+2. Copy the **entire content** of the file (Ctrl+A, Ctrl+C)
 
-### Step 1: Host Your Images
+---
 
-Upload your images to:
-- **GitHub** (free, use jsDelivr CDN)
-- **Cloudinary** (free tier available)
-- **AWS S3** or other CDN
-- Any web server
+## Step 3: Configure Your Settings
 
-### Step 2: Get the Base URL
+Before pasting into Squarespace, you need to configure the image settings.
 
-For GitHub + jsDelivr:
-- Upload images to a GitHub repository
-- Base URL format: `https://cdn.jsdelivr.net/gh/USERNAME/REPO@main/FOLDER/`
-- Example: `https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/`
-
-### Step 3: Configure
-
-Open `squarespace-ready.html` and update:
+Look for the **CONFIGURATION** section in the code (near the bottom, around line 383):
 
 ```javascript
-window.rotator360 = new Rotator360Embed({
-    containerId: 'rotator360-embed',
-    
-    imagePath: 'https://cdn.jsdelivr.net/gh/yourusername/yourrepo@main/foldername/',
+const CONFIG = {
+    // Option A: base path pattern (recommended)
+    imagePath: 'https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/',
     imageFormat: 'png',
     totalFrames: 36,
     startFrame: 0,
     framePadding: 5,
-    useUnderscore: false
-});
+    useUnderscore: false,
+    autoRotateSpeed: 0.5
+};
 ```
 
-### Step 4: Add to Squarespace
+### Configuration Options Explained
 
-Same as Method 1, Step 4.
-
----
-
-## 📋 Configuration Reference
+| Option | Description | Examples |
+|--------|-------------|----------|
+| `imagePath` | Base URL path to your images (without frame number) | `'https://yoursite.squarespace.com/s/'`<br>`'https://cdn.jsdelivr.net/gh/user/repo@main/folder/'` |
+| `imageFormat` | Image file extension | `'png'`, `'jpg'`, `'webp'` |
+| `totalFrames` | Total number of images | `36`, `72`, `24` |
+| `startFrame` | Starting frame number | `0` (for 00000.png)<br>`1` (for 001.jpg) |
+| `framePadding` | Number of digits in filename | `5` (for 00000)<br>`3` (for 001)<br>`2` (for 01) |
+| `useUnderscore` | Whether filename has underscore separator | `false` (for 00000.png)<br>`true` (for product_001.jpg) |
+| `autoRotateSpeed` | Speed of auto-rotation (degrees per frame) | `0.5` (normal)<br>`0.3` (slower)<br>`1.0` (faster) |
 
 ### Common Image Naming Patterns
 
-| Image Names | Configuration |
-|------------|---------------|
-| `00000.png`, `00001.png`, ... | `startFrame: 0`, `framePadding: 5`, `useUnderscore: false` |
-| `000.png`, `001.png`, ... | `startFrame: 0`, `framePadding: 3`, `useUnderscore: false` |
-| `product_001.jpg`, `product_002.jpg`, ... | `startFrame: 1`, `framePadding: 3`, `useUnderscore: true` |
-| `chair_01.jpg`, `chair_02.jpg`, ... | `startFrame: 1`, `framePadding: 2`, `useUnderscore: true` |
+#### Pattern 1: 00000.png, 00001.png, ... 00035.png
+```javascript
+imagePath: 'https://yoursite.squarespace.com/s/',
+imageFormat: 'png',
+totalFrames: 36,
+startFrame: 0,
+framePadding: 5,
+useUnderscore: false
+```
 
-### All Configuration Options
+#### Pattern 2: product_001.jpg, product_002.jpg, ... product_036.jpg
+```javascript
+imagePath: 'https://yoursite.squarespace.com/s/product',
+imageFormat: 'jpg',
+totalFrames: 36,
+startFrame: 1,
+framePadding: 3,
+useUnderscore: true
+```
+
+#### Pattern 3: chair01.png, chair02.png, ... chair36.png
+```javascript
+imagePath: 'https://yoursite.squarespace.com/s/chair',
+imageFormat: 'png',
+totalFrames: 36,
+startFrame: 1,
+framePadding: 2,
+useUnderscore: false
+```
+
+### Option B: Explicit URLs (When URLs Don't Follow a Pattern)
+
+If each image has a completely different URL, use the `frameUrls` option instead:
 
 ```javascript
-{
-    containerId: 'rotator360-embed',     // Container element ID
-    imagePath: 'https://...',            // Base URL (or use frameUrls)
-    frameUrls: [...],                    // Explicit URLs array (alternative to imagePath)
-    imageFormat: 'png',                  // 'png', 'jpg', or 'webp'
-    totalFrames: 36,                     // Number of images
-    startFrame: 0,                       // Starting frame number
-    framePadding: 5,                     // Digits in filename (5 = 00000)
-    useUnderscore: false                // true for product_001, false for 00000
-}
+const CONFIG = {
+    frameUrls: [
+        'https://images.squarespace-cdn.com/content/.../00000.png?...',
+        'https://images.squarespace-cdn.com/content/.../00001.png?...',
+        'https://images.squarespace-cdn.com/content/.../00002.png?...',
+        // ... add all URLs in order
+    ],
+    totalFrames: 36,
+    startFrame: 0
+};
 ```
+
+**Tip:** To get all URLs from Squarespace Asset Library:
+1. Open Asset Library folder with your images
+2. Press **F12** (Developer Tools)
+3. Go to **Console** tab
+4. Paste this script:
+
+```javascript
+[...document.querySelectorAll('[data-clipboard-text]')]
+  .map(btn => btn.getAttribute('data-clipboard-text'))
+  .filter(url => url && (url.includes('.png') || url.includes('.jpg')))
+  .sort()
+  .forEach(url => console.log(`'${url}',`));
+```
+
+5. Copy the output and paste into `frameUrls` array
 
 ---
 
-## 🎨 Customization Options
+## Step 4: Add to Squarespace
+
+1. **Edit your Squarespace page**
+2. **Add a new block**: Click the **+** icon where you want the rotator
+3. **Select "Code" block** from the menu
+4. **Paste the entire code** (with your configuration)
+5. **Click "Apply"** or **"Save"**
+6. **Preview** your page to test
+
+---
+
+## Step 5: Add Multiple Rotators (Optional)
+
+Want multiple 360° viewers on the same page? Just duplicate the code block!
+
+Each instance works independently with its own:
+- Controls (Auto Rotate, Reset)
+- Frame counter
+- Rotation state
+
+Simply copy the entire code block and paste it again on the same page.
+
+---
+
+## 🎨 Customization
 
 ### Change Aspect Ratio
 
-In the `<style>` section, find:
+In the CSS section, find:
+
 ```css
 .rotator-360-embed {
     padding-bottom: 75%; /* Change this value */
 }
 ```
 
-- `75%` = 4:3 aspect ratio
-- `100%` = 1:1 (square)
+- `75%` = 4:3 (default)
 - `56.25%` = 16:9 (widescreen)
+- `100%` = 1:1 (square)
 - `133.33%` = 3:4 (portrait)
 
-### Change Rotation Speed
+### Change Colors
 
-Find this line in the JavaScript (around line 181):
-```javascript
-this.rotation += deltaX * 0.5; // Change 0.5 to adjust speed
+```css
+.rotator-btn-embed {
+    background: #667eea; /* Change button color */
+}
+.rotator-btn-embed.active {
+    background: #48bb78; /* Change active button color */
+}
 ```
 
-- `0.3` = slower rotation
-- `0.5` = normal (default)
-- `1.0` = faster rotation
-- `1.5` = very fast
+### Enable Speed Control Slider
 
-### Change Colors/Styling
+In the HTML section, find the commented-out speed control and uncomment it:
 
-Modify the CSS in the `<style>` section:
-- Background color: `background: #fff;`
-- Border radius: `border-radius: 10px;`
-- Shadow: `box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);`
-- Loading text color: `color: #667eea;`
+```html
+<!-- Optional: speed control (uncomment to use) -->
+<label class="rotator-info-embed speedControl-embed" style="background: transparent; box-shadow:none;">
+    Speed
+    <input class="speedInput-embed" type="range" min="0.2" max="2" step="0.1" value="0.5" style="vertical-align:middle;">
+</label>
+```
+
+Remove the `<!--` and `-->` to enable it.
 
 ---
 
 ## 🔧 Troubleshooting
 
-### Images Not Loading?
+### Problem: Images not loading
 
-1. **Check Browser Console (F12)**
-   - Look for 404 errors
-   - Verify URLs are correct
+**Check:**
+1. Open browser console (F12) - look for 404 errors
+2. Verify one image URL directly in browser
+3. Check that `imagePath` matches your actual URLs
+4. Verify `imageFormat`, `framePadding`, `startFrame` are correct
 
-2. **Verify Image URLs**
-   - Test one URL directly in browser
-   - Make sure URLs are accessible (not private)
+**Common issues:**
+- Wrong `framePadding` (5 vs 3 vs 2)
+- Wrong `startFrame` (0 vs 1)
+- Wrong `useUnderscore` (true vs false)
+- Images are private/not publicly accessible
 
-3. **Check Configuration**
-   - `imagePath` matches your actual URLs
-   - `imageFormat` matches your files
-   - `totalFrames` matches number of images
-   - `framePadding` matches filename format
+### Problem: Only shows "Loading..."
 
-### Rotator Not Appearing?
+**Possible causes:**
+- Images failed to load (check console for errors)
+- JavaScript error (check console)
+- Wrong configuration
 
-1. **Check Console for Errors (F12)**
-   - Look for JavaScript errors
-   - Check if container element exists
+**Solution:**
+1. Press F12 and check Console tab for errors
+2. Test one image URL directly in browser
+3. Verify configuration matches your image naming
 
-2. **Verify Code Block**
-   - Make sure entire code is pasted
-   - No missing closing tags
+### Problem: Rotation is too fast/slow
 
-3. **Check Squarespace Settings**
-   - Some Squarespace plans may restrict custom code
-   - Try a different page template
+**Solution:**
+Adjust the sensitivity in the code. Find this line (around line 268):
 
-### Rotation Not Working?
-
-1. **Check Touch Events**
-   - Mobile: Try swiping
-   - Desktop: Try clicking and dragging
-
-2. **Check Console**
-   - Look for JavaScript errors
-   - Verify images loaded successfully
-
-### Images Loading Slowly?
-
-1. **Optimize Images**
-   - Compress images (use TinyPNG or similar)
-   - Consider WebP format
-   - Reduce image dimensions if too large
-
-2. **Use CDN**
-   - Host images on a CDN for faster delivery
-   - GitHub + jsDelivr is free and fast
-
----
-
-## ✅ Quick Checklist
-
-Before going live, verify:
-
-- [ ] All images uploaded and accessible
-- [ ] Configuration matches your image naming
-- [ ] Tested on desktop (drag to rotate)
-- [ ] Tested on mobile (swipe to rotate)
-- [ ] No console errors (F12)
-- [ ] Loading indicator disappears when ready
-- [ ] Rotation is smooth
-- [ ] Images are in correct order
-
----
-
-## 📞 Need More Help?
-
-1. **Check Browser Console (F12)** - Most issues show error messages here
-2. **Test with `test-image.html`** - Verify images load correctly
-3. **Review `README.md`** - Detailed documentation
-4. **Check `DEPLOYMENT.md`** - Additional deployment tips
-
----
-
-## 🚀 Pro Tips
-
-1. **Test First**: Always test in preview mode before publishing
-2. **Optimize Images**: Compress images to reduce load time
-3. **Use CDN**: External CDN is often faster than Squarespace files
-4. **Mobile First**: Test on mobile devices - most users are on mobile
-5. **Multiple Rotators**: You can add multiple rotators on one page (just change `containerId`)
-
----
-
-## Example: Complete Working Code
-
-Here's a complete example for images named `00000.png` through `00035.png`:
-
-```html
-<style>
-    .rotator-360-embed {
-        position: relative;
-        width: 100%;
-        padding-bottom: 75%;
-        background: #fff;
-        border-radius: 10px;
-        overflow: hidden;
-        cursor: grab;
-        user-select: none;
-        touch-action: none;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        margin: 20px 0;
-    }
-    .rotator-360-embed:active { cursor: grabbing; }
-    .rotator-360-embed img {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        display: block;
-        transition: opacity 0.1s ease;
-    }
-    .rotator-overlay-embed {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(255, 255, 255, 0.9);
-        z-index: 10;
-        transition: opacity 0.3s ease;
-    }
-    .rotator-overlay-embed.hidden {
-        opacity: 0;
-        pointer-events: none;
-    }
-    .loading-indicator-embed {
-        font-size: 1.2em;
-        color: #667eea;
-        font-weight: 500;
-    }
-</style>
-
-<div class="rotator-360-embed" id="rotator360-embed">
-    <img id="rotatorImage-embed" src="" alt="360 Product View">
-    <div class="rotator-overlay-embed">
-        <div class="loading-indicator-embed">Loading...</div>
-    </div>
-</div>
-
-<script>
-(function() {
-    'use strict';
-    
-    class Rotator360Embed {
-        constructor(options) {
-            this.containerId = options.containerId || 'rotator360-embed';
-            this.frameUrls = Array.isArray(options.frameUrls) ? options.frameUrls.filter(Boolean) : null;
-            this.usesFrameUrls = Array.isArray(this.frameUrls) && this.frameUrls.length > 0;
-            this.imagePath = options.imagePath || 'images/product';
-            this.imageFormat = options.imageFormat || 'jpg';
-            this.framePadding = options.framePadding || 3;
-            this.useUnderscore = options.useUnderscore !== undefined ? options.useUnderscore : true;
-            this.totalFrames = this.usesFrameUrls ? (options.totalFrames || this.frameUrls.length) : (options.totalFrames || 36);
-            this.startFrame = options.startFrame !== undefined ? options.startFrame : (this.usesFrameUrls ? 0 : 1);
-            this.container = document.getElementById(this.containerId);
-            this.imageElement = this.container.querySelector('img');
-            this.overlay = this.container.querySelector('.rotator-overlay-embed');
-            this.currentFrame = this.startFrame;
-            this.isDragging = false;
-            this.startX = 0;
-            this.lastX = 0;
-            this.rotation = 0;
-            this.images = [];
-            this.init();
-        }
-
-        init() {
-            if (!this.container || !this.imageElement) {
-                console.error('Rotator360: Container not found');
-                return;
-            }
-            this.preloadImages();
-            this.setupEventListeners();
-        }
-
-        preloadImages() {
-            let loadedCount = 0;
-            const totalImages = this.totalFrames;
-            
-            for (let index = 0; index < totalImages; index++) {
-                const frameNumber = this.startFrame + index;
-                const imageUrl = this.getImageUrl(frameNumber);
-                const img = new Image();
-                if (!imageUrl) {
-                    this.images.push(null);
-                    continue;
-                }
-                img.src = imageUrl;
-                
-                img.onload = () => {
-                    loadedCount++;
-                    if (loadedCount === totalImages) {
-                        if (this.overlay) {
-                            this.overlay.classList.add('hidden');
-                        }
-                    }
-                };
-                
-                img.onerror = () => {
-                    console.warn('Rotator360: Failed to load image:', imageUrl);
-                    loadedCount++;
-                    if (loadedCount === totalImages) {
-                        if (this.overlay) {
-                            this.overlay.classList.add('hidden');
-                        }
-                    }
-                };
-                
-                this.images.push(img);
-            }
-            
-            this.updateImage(this.startFrame);
-        }
-
-        setupEventListeners() {
-            this.container.addEventListener('mousedown', (e) => this.handleStart(e));
-            document.addEventListener('mousemove', (e) => this.handleMove(e));
-            document.addEventListener('mouseup', (e) => this.handleEnd(e));
-            this.container.addEventListener('touchstart', (e) => this.handleStart(e), { passive: false });
-            document.addEventListener('touchmove', (e) => this.handleMove(e), { passive: false });
-            document.addEventListener('touchend', (e) => this.handleEnd(e));
-            this.container.addEventListener('contextmenu', (e) => e.preventDefault());
-        }
-
-        handleStart(e) {
-            this.isDragging = true;
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            this.startX = clientX;
-            this.lastX = clientX;
-            this.container.style.cursor = 'grabbing';
-            e.preventDefault();
-        }
-
-        handleMove(e) {
-            if (!this.isDragging) return;
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const deltaX = clientX - this.lastX;
-            this.lastX = clientX;
-            this.rotation += deltaX * 0.5;
-            this.updateFrameFromRotation();
-            e.preventDefault();
-        }
-
-        handleEnd(e) {
-            if (!this.isDragging) return;
-            this.isDragging = false;
-            this.container.style.cursor = 'grab';
-        }
-
-        updateFrameFromRotation() {
-            const normalizedRotation = ((this.rotation % 360) + 360) % 360;
-            const frameIndex = Math.round((normalizedRotation / 360) * this.totalFrames);
-            let targetFrame = (frameIndex % this.totalFrames) + this.startFrame;
-            if (targetFrame >= this.startFrame + this.totalFrames) {
-                targetFrame = this.startFrame;
-            }
-            
-            if (targetFrame !== this.currentFrame) {
-                this.currentFrame = targetFrame;
-                this.updateImage(targetFrame);
-            }
-        }
-
-        updateImage(frameNumber) {
-            const minFrame = this.startFrame;
-            const maxFrame = this.startFrame + this.totalFrames - 1;
-            if (frameNumber < minFrame || frameNumber > maxFrame) return;
-            const imageUrl = this.getImageUrl(frameNumber);
-            const arrayIndex = frameNumber - this.startFrame;
-            const preloadedImg = this.images[arrayIndex];
-            
-            if (preloadedImg && preloadedImg.complete) {
-                this.imageElement.src = preloadedImg.src;
-            } else if (imageUrl) {
-                this.imageElement.src = imageUrl;
-            }
-        }
-
-        getImageUrl(frameNumber) {
-            if (this.usesFrameUrls) {
-                const index = frameNumber - this.startFrame;
-                return this.frameUrls && this.frameUrls[index] ? this.frameUrls[index] : null;
-            }
-            const frameNum = String(frameNumber).padStart(this.framePadding, '0');
-            const separator = this.useUnderscore ? '_' : '';
-            return `${this.imagePath}${separator}${frameNum}.${this.imageFormat}`;
-        }
-    }
-
-    function initRotator() {
-        window.rotator360 = new Rotator360Embed({
-            containerId: 'rotator360-embed',
-            imagePath: 'https://yoursite.squarespace.com/s/', // ← CHANGE THIS
-            imageFormat: 'png',                                 // ← CHANGE THIS
-            totalFrames: 36,                                    // ← CHANGE THIS
-            startFrame: 0,                                      // ← CHANGE THIS
-            framePadding: 5,                                    // ← CHANGE THIS
-            useUnderscore: false                                // ← CHANGE THIS
-        });
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initRotator);
-    } else {
-        initRotator();
-    }
-})();
-</script>
+```javascript
+const sensitivity = 0.5; // Change this value
 ```
 
-**Just update the configuration section with your values and paste into a Squarespace Code Block!**
+- Lower = slower rotation (`0.3`)
+- Higher = faster rotation (`1.0`)
 
+### Problem: Auto-rotate is too fast/slow
+
+**Solution:**
+Change `autoRotateSpeed` in the CONFIG section:
+
+```javascript
+autoRotateSpeed: 0.5  // 0.3 = slower, 1.0 = faster
+```
+
+### Problem: Multiple blocks on same page, only first one works
+
+**Solution:**
+This shouldn't happen with the new version! If it does:
+1. Make sure you're using `squarespace-with-controls.html`
+2. Check that each block has the class `rotator-wrap-embed`
+3. Clear browser cache and refresh
+
+---
+
+## 📱 Mobile Considerations
+
+The rotator is fully mobile-responsive:
+- ✅ Touch/swipe gestures work
+- ✅ Pinch gestures won't interfere with rotation
+- ✅ Works on all screen sizes
+
+**Tip:** Test on actual mobile devices, not just browser DevTools, for best accuracy.
+
+---
+
+## 🚀 Best Practices
+
+### Image Optimization
+1. **Compress images** - Use TinyPNG, Squoosh, or similar
+2. **Recommended size**: 1200-1800px width
+3. **Target file size**: Under 300KB per image
+4. **Format**: WebP for best compression, PNG for transparency, JPG for photos
+
+### Performance
+- **36 images** is the sweet spot (10° per frame)
+- **72 images** for ultra-smooth rotation (5° per frame) - but slower loading
+- **24 images** for faster loading (15° per frame) - less smooth
+
+### User Experience
+- Start with auto-rotate OFF - let users discover interaction
+- Add instructions above the rotator: "Drag to rotate"
+- Place the reset button prominently
+- Consider adding a speed slider for user control
+
+---
+
+## 📋 File Structure
+
+Your project now contains:
+
+```
+MyWebRotator360/
+├── squarespace-with-controls.html    ← Main file (copy this!)
+├── SQUARESPACE-IMPLEMENTATION-GUIDE.md ← This guide
+└── images/
+    └── README.md                      ← Image preparation guide
+```
+
+---
+
+## 💡 Tips
+
+1. **Test locally first**: Open `squarespace-with-controls.html` in your browser to test before uploading to Squarespace
+2. **Use Squarespace preview**: Always preview changes before publishing
+3. **Keep originals**: Keep a copy of your original, uncompressed images
+4. **Consistent lighting**: All images should have the same lighting/exposure
+5. **Clean background**: Use a plain or transparent background for best results
+
+---
+
+## 📞 Need Help?
+
+Common questions:
+- **"How do I create 360° images?"** - Use a turntable and take photos every 10°, or use 3D software to render frames
+- **"Can I use videos instead?"** - No, this rotator uses static images
+- **"Can I zoom in?"** - Not in the current version (future feature)
+- **"Does it work on all Squarespace templates?"** - Yes, works on all templates that support Code Blocks
+
+---
+
+**Ready to go?** Just copy `squarespace-with-controls.html`, configure it, and paste into your Squarespace Code Block!

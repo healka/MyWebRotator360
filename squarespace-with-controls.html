@@ -1,10 +1,16 @@
 <!-- 
-    360° IMAGE ROTATOR - SQUARESPACE BLOCK WITH CONTROLS
+    360° IMAGE ROTATOR - SQUARESPACE BLOCK WITH CONTROLS (MULTI-INSTANCE SUPPORT)
     Copy-paste this entire file into a Squarespace Code Block.
+    You can add multiple blocks to the same page - each will work independently.
     Then, adjust the CONFIG section near the bottom.
 -->
 
 <style>
+    /* Wrapper for each instance */
+    .rotator-wrap-embed {
+        margin: 20px 0;
+    }
+
     /* Container */
     .rotator-360-embed {
         position: relative;
@@ -17,7 +23,7 @@
         user-select: none;
         touch-action: none;
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        margin: 20px 0 10px 0;
+        margin-bottom: 10px;
     }
     .rotator-360-embed:active { cursor: grabbing; }
 
@@ -98,31 +104,34 @@
     }
 </style>
 
-<div class="rotator-360-embed" id="rotator360-embed" aria-label="360 degree product viewer">
-    <img id="rotatorImage-embed" src="" alt="360 Product View">
-    <div class="rotator-overlay-embed">
-        <div class="loading-indicator-embed">Loading...</div>
+<div class="rotator-wrap-embed" aria-label="360 degree product viewer">
+    <div class="rotator-360-embed">
+        <img class="rotatorImage-embed" src="" alt="360 Product View">
+        <div class="rotator-overlay-embed">
+            <div class="loading-indicator-embed">Loading...</div>
+        </div>
+    </div>
+    <div class="rotator-controls-embed" aria-label="360 viewer controls">
+        <button class="rotator-btn-embed autoRotateBtn-embed" type="button">Auto Rotate</button>
+        <button class="rotator-btn-embed resetBtn-embed" type="button">Reset</button>
+        <div class="rotator-info-embed frameInfo-embed">Frame —</div>
+        <!-- Optional: speed control (uncomment to use)
+        <label class="rotator-info-embed speedControl-embed" style="background: transparent; box-shadow:none;">
+            Speed
+            <input class="speedInput-embed" type="range" min="0.2" max="2" step="0.1" value="0.5" style="vertical-align:middle;">
+        </label>
+        -->
     </div>
 </div>
-<div class="rotator-controls-embed" aria-label="360 viewer controls">
-    <button class="rotator-btn-embed" id="autoRotateBtn-embed" type="button">Auto Rotate</button>
-    <button class="rotator-btn-embed" id="resetBtn-embed" type="button">Reset</button>
-    <div class="rotator-info-embed" id="frameInfo-embed">Frame —</div>
-    <!-- Optional: speed control (uncomment to use)
-    <label class="rotator-info-embed" style="background: transparent; box-shadow:none;">
-        Speed
-        <input id="speedInput-embed" type="range" min="0.2" max="2" step="0.1" value="0.5" style="vertical-align:middle;">
-    </label>
-    -->
-  </div>
 
 <script>
 (function() {
     'use strict';
 
     class Rotator360Embed {
-        constructor(options) {
-            this.containerId = options.containerId || 'rotator360-embed';
+        constructor(rootEl, options) {
+            // Instead of using global IDs, we query within rootEl
+            this.rootEl = rootEl;
             this.frameUrls = Array.isArray(options.frameUrls) ? options.frameUrls.filter(Boolean) : null;
             this.usesFrameUrls = Array.isArray(this.frameUrls) && this.frameUrls.length > 0;
             this.imagePath = options.imagePath || 'images/product';
@@ -134,9 +143,10 @@
 
             this.autoRotateSpeed = options.autoRotateSpeed || 0.5; // degrees per tick (~16ms)
 
-            this.container = document.getElementById(this.containerId);
-            this.imageElement = this.container.querySelector('img');
-            this.overlay = this.container.querySelector('.rotator-overlay-embed');
+            // Query within this instance's root element
+            this.container = this.rootEl.querySelector('.rotator-360-embed');
+            this.imageElement = this.container ? this.container.querySelector('.rotatorImage-embed') : null;
+            this.overlay = this.container ? this.container.querySelector('.rotator-overlay-embed') : null;
             this.currentFrame = this.startFrame;
 
             this.isDragging = false;
@@ -145,12 +155,12 @@
             this.rotation = 0;
             this.images = [];
 
-            // Controls
+            // Controls - query within root
             this.autoRotateInterval = null;
-            this.autoRotateBtn = document.getElementById('autoRotateBtn-embed');
-            this.resetBtn = document.getElementById('resetBtn-embed');
-            this.frameInfo = document.getElementById('frameInfo-embed');
-            this.speedInput = document.getElementById('speedInput-embed'); // optional
+            this.autoRotateBtn = this.rootEl.querySelector('.autoRotateBtn-embed');
+            this.resetBtn = this.rootEl.querySelector('.resetBtn-embed');
+            this.frameInfo = this.rootEl.querySelector('.frameInfo-embed');
+            this.speedInput = this.rootEl.querySelector('.speedInput-embed'); // optional
 
             // Momentum/inertia
             this.velocityX = 0;
@@ -162,7 +172,7 @@
 
         init() {
             if (!this.container || !this.imageElement) {
-                console.error('Rotator360: Container not found');
+                console.error('Rotator360: Container or image element not found');
                 return;
             }
             this.preloadImages();
@@ -201,12 +211,17 @@
         }
 
         setupEventListeners() {
-            this.container.addEventListener('mousedown', (e) => this.handleStart(e));
-            document.addEventListener('mousemove', (e) => this.handleMove(e));
-            document.addEventListener('mouseup', (e) => this.handleEnd(e));
-            this.container.addEventListener('touchstart', (e) => this.handleStart(e), { passive: false });
-            document.addEventListener('touchmove', (e) => this.handleMove(e), { passive: false });
-            document.addEventListener('touchend', (e) => this.handleEnd(e));
+            // Bind handlers to this instance
+            this._handleStart = (e) => this.handleStart(e);
+            this._handleMove = (e) => this.handleMove(e);
+            this._handleEnd = (e) => this.handleEnd(e);
+
+            this.container.addEventListener('mousedown', this._handleStart);
+            document.addEventListener('mousemove', this._handleMove);
+            document.addEventListener('mouseup', this._handleEnd);
+            this.container.addEventListener('touchstart', this._handleStart, { passive: false });
+            document.addEventListener('touchmove', this._handleMove, { passive: false });
+            document.addEventListener('touchend', this._handleEnd);
             this.container.addEventListener('contextmenu', (e) => e.preventDefault());
         }
 
@@ -261,8 +276,8 @@
         }
 
         applyMomentum() {
-            // Simple exponential decay on velocity (infinite screen drag not needed; we track on document)
-            // Converts velocity to rotation delta per frame
+            // Simple exponential decay on velocity
+            // Mouse moves are tracked on document, so infinite drag already works
             const sensitivity = 0.5;
             let vx = this.velocityX; // px/ms
             const decay = 0.95; // 0..1 lower = quicker stop
@@ -370,39 +385,63 @@
             this.updateImage(this.startFrame);
             this.updateFrameInfo();
         }
+
+        // Cleanup method (optional, if you need to destroy instances)
+        destroy() {
+            this.stopAutoRotate();
+            this.cancelMomentum();
+            if (this.container) {
+                document.removeEventListener('mousemove', this._handleMove);
+                document.removeEventListener('mouseup', this._handleEnd);
+                document.removeEventListener('touchmove', this._handleMove);
+                document.removeEventListener('touchend', this._handleEnd);
+            }
+        }
     }
 
     // =========================
     // CONFIGURATION (EDIT THIS)
     // =========================
-    function initRotator() {
-        window.rotator360 = new Rotator360Embed({
-            containerId: 'rotator360-embed',
-            // Option A: base path pattern (recommended)
-            imagePath: 'https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/',
-            imageFormat: 'png',
-            totalFrames: 36,
-            startFrame: 0,
-            framePadding: 5,
-            useUnderscore: false,
-            // Auto-rotate speed (degrees per ~16ms)
-            autoRotateSpeed: 0.5
+    const CONFIG = {
+        // Option A: base path pattern (recommended)
+        imagePath: 'https://cdn.jsdelivr.net/gh/healka/rotator-assets@main/AspenTest/',
+        imageFormat: 'png',
+        totalFrames: 36,
+        startFrame: 0,
+        framePadding: 5,
+        useUnderscore: false,
+        // Auto-rotate speed (degrees per ~16ms)
+        autoRotateSpeed: 0.5
 
-            // Option B: explicit URLs array (uncomment to use)
-            // frameUrls: [
-            //   'https://.../00000.png', 'https://.../00001.png', /* ... */ 'https://.../00035.png'
-            // ],
-            // totalFrames: 36,
-            // startFrame: 0
+        // Option B: explicit URLs array (uncomment to use)
+        // frameUrls: [
+        //   'https://.../00000.png', 'https://.../00001.png', /* ... */ 'https://.../00035.png'
+        // ],
+        // totalFrames: 36,
+        // startFrame: 0
+    };
+
+    // Initialize all rotators on the page
+    function initRotators() {
+        const wrappers = document.querySelectorAll('.rotator-wrap-embed');
+        window.rotators = window.rotators || [];
+        
+        wrappers.forEach((wrapper) => {
+            // Skip if already initialized (prevents double-init on re-run)
+            if (wrapper.dataset.rotatorInit) return;
+            wrapper.dataset.rotatorInit = 'true';
+            
+            // Create instance for this wrapper
+            const instance = new Rotator360Embed(wrapper, CONFIG);
+            window.rotators.push(instance);
         });
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initRotator);
+        document.addEventListener('DOMContentLoaded', initRotators);
     } else {
-        initRotator();
+        initRotators();
     }
 })();
 </script>
-
 
