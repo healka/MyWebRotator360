@@ -33,8 +33,9 @@
         height: 100%;
         object-fit: contain;
         display: block;
-        transition: opacity 0.1s ease;
-        will-change: opacity;
+        transition: opacity 0.1s ease, transform 0.2s ease;
+        will-change: opacity, transform;
+        transform-origin: center center;
     }
 
     .rotator-overlay-embed {
@@ -58,48 +59,19 @@
         letter-spacing: .3px;
     }
 
-    /* Controls */
-    .rotator-controls-embed {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin: 8px 0 6px 0;
+    /* Fullscreen styles */
+    .rotator-360-embed.fullscreen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        padding-bottom: 0;
+        z-index: 9999;
+        border-radius: 0;
+        margin: 0;
     }
-    .rotator-btn-embed {
-        padding: 10px 16px;
-        background: #667eea;
-        color: #fff;
-        border: none;
-        border-radius: 22px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all .2s ease;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
-    }
-    .rotator-btn-embed:hover {
-        background: #5568d3;
-        transform: translateY(-1px);
-        box-shadow: 0 6px 18px rgba(102, 126, 234, 0.45);
-    }
-    .rotator-btn-embed:active {
-        transform: translateY(0);
-    }
-    .rotator-btn-embed.active {
-        background: #48bb78;
-        box-shadow: 0 4px 12px rgba(72, 187, 120, 0.35);
-    }
-    .rotator-info-embed {
-        font-size: 13px;
-        color: #555;
-        min-width: 110px;
-        text-align: center;
-        padding: 6px 10px;
-        border-radius: 14px;
-        background: #f1f5f9;
-    }
+
 </style>
 
 <div class="rotator-wrap-embed rotator-abbey" aria-label="360 degree product viewer">
@@ -108,11 +80,6 @@
         <div class="rotator-overlay-embed">
             <div class="loading-indicator-embed">Loading...</div>
         </div>
-    </div>
-    <div class="rotator-controls-embed" aria-label="360 viewer controls">
-        <button class="rotator-btn-embed autoRotateBtn-embed" type="button">Auto Rotate</button>
-        <button class="rotator-btn-embed resetBtn-embed" type="button">Reset</button>
-        <div class="rotator-info-embed frameInfo-embed">Frame —</div>
     </div>
 </div>
 
@@ -146,14 +113,41 @@
             this.images = [];
 
             this.autoRotateInterval = null;
-            this.autoRotateBtn = this.rootEl.querySelector('.autoRotateBtn-embed');
-            this.resetBtn = this.rootEl.querySelector('.resetBtn-embed');
-            this.frameInfo = this.rootEl.querySelector('.frameInfo-embed');
-            this.speedInput = this.rootEl.querySelector('.speedInput-embed');
-
             this.velocityX = 0;
             this.lastMoveTs = 0;
             this.momentumId = 0;
+
+            this.zoomLevel = 1;
+            this.minZoom = 0.5;
+            this.maxZoom = 3;
+            this.panX = 0;
+            this.panY = 0;
+            this.isPanning = false;
+            this.isRotating = false;
+
+            // Double-click detection (only for left button)
+            this.lastClickTime = 0;
+            this.doubleClickDelay = 300;
+            
+            // Middle button click detection
+            this.middleClickStart = null;
+            
+            // Double-tap detection for mobile
+            this.lastTapTime = 0;
+            this.lastTapPos = null;
+            this.doubleTapDelay = 300;
+            this.doubleTapMaxDistance = 50;
+            
+            // Two-finger panning for mobile
+            this.twoFingerPanStart = null;
+            this.isTwoFingerPanning = false;
+
+            // Fullscreen state
+            this.isFullscreen = false;
+
+            // Touch/pinch support
+            this.touchStartDistance = 0;
+            this.lastZoomLevel = 1;
 
             this.init();
         }
@@ -165,8 +159,6 @@
             }
             this.preloadImages();
             this.setupEventListeners();
-            this.setupControls();
-            this.updateFrameInfo();
         }
 
         preloadImages() {
@@ -202,6 +194,7 @@
             this._handleStart = (e) => this.handleStart(e);
             this._handleMove = (e) => this.handleMove(e);
             this._handleEnd = (e) => this.handleEnd(e);
+            this._handleWheel = (e) => this.handleWheel(e);
 
             this.container.addEventListener('mousedown', this._handleStart);
             document.addEventListener('mousemove', this._handleMove);
@@ -210,56 +203,261 @@
             document.addEventListener('touchmove', this._handleMove, { passive: false });
             document.addEventListener('touchend', this._handleEnd);
             this.container.addEventListener('contextmenu', (e) => e.preventDefault());
+            this.container.addEventListener('wheel', this._handleWheel, { passive: false });
+
+            // Fullscreen change event
+            document.addEventListener('fullscreenchange', () => this.handleFullscreenChange());
+            document.addEventListener('webkitfullscreenchange', () => this.handleFullscreenChange());
+            document.addEventListener('mozfullscreenchange', () => this.handleFullscreenChange());
+            document.addEventListener('MSFullscreenChange', () => this.handleFullscreenChange());
         }
 
-        setupControls() {
-            if (this.autoRotateBtn) {
-                this.autoRotateBtn.addEventListener('click', () => this.toggleAutoRotate());
-            }
-            if (this.resetBtn) {
-                this.resetBtn.addEventListener('click', () => this.resetRotation());
-            }
-            if (this.speedInput) {
-                this.speedInput.addEventListener('input', () => {
-                    const v = parseFloat(this.speedInput.value);
-                    if (!isNaN(v)) this.autoRotateSpeed = v;
-                });
-            }
-        }
 
         handleStart(e) {
-            this.isDragging = true;
-            this.stopAutoRotate();
             this.cancelMomentum();
+            const isTouch = !!e.touches;
+            
+            // Handle 2-finger touch for pinch-to-zoom and panning
+            if (isTouch && e.touches.length === 2) {
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                this.touchStartDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+                this.lastZoomLevel = this.zoomLevel;
+                
+                // Store center point for 2-finger panning
+                const centerX = (touch1.clientX + touch2.clientX) / 2;
+                const centerY = (touch1.clientY + touch2.clientY) / 2;
+                this.twoFingerPanStart = { x: centerX, y: centerY };
+                this.lastPanX = this.panX;
+                this.lastPanY = this.panY;
+                this.isTwoFingerPanning = false;
+                
+                e.preventDefault();
+                return;
+            }
+
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            this.startX = clientX;
-            this.lastX = clientX;
-            this.lastMoveTs = performance.now();
-            this.container.style.cursor = 'grabbing';
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            // Determine mode based on mouse button
+            // Left button (0) or touch = rotation
+            // Middle button (1) = reset (single click) or panning (drag)
+            const button = isTouch ? 0 : e.button;
+            const currentTime = performance.now();
+            
+            // Middle button - single click for reset
+            if (button === 1) {
+                this.isPanning = true;
+                this.isRotating = false;
+                this.middleClickStart = { x: clientX, y: clientY, time: currentTime };
+                this.startX = clientX;
+                this.startY = clientY;
+                this.lastPanX = this.panX;
+                this.lastPanY = this.panY;
+                this.container.style.cursor = 'grabbing';
+                e.preventDefault();
+                return;
+            }
+            
+            // Left button - double-click detection for fullscreen
+            if (button === 0 && !isTouch && currentTime - this.lastClickTime < this.doubleClickDelay) {
+                this.toggleFullscreen();
+                this.lastClickTime = 0;
+                e.preventDefault();
+                return;
+            }
+            
+            this.lastClickTime = currentTime;
+            
+            if (button === 0) {
+                // Left button or touch - rotation mode
+                this.isRotating = true;
+                this.isPanning = false;
+                this.isDragging = true;
+                this.startX = clientX;
+                this.lastX = clientX;
+                this.lastMoveTs = performance.now();
+                this.container.style.cursor = 'grabbing';
+            }
             e.preventDefault();
         }
 
         handleMove(e) {
-            if (!this.isDragging) return;
+            const isTouch = !!e.touches;
+            
+            // Handle 2-finger touch: pinch-to-zoom and panning
+            if (isTouch && e.touches.length === 2) {
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const currentDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+                
+                // Calculate center point for panning
+                const centerX = (touch1.clientX + touch2.clientX) / 2;
+                const centerY = (touch1.clientY + touch2.clientY) / 2;
+                
+                if (this.touchStartDistance > 0 && this.twoFingerPanStart) {
+                    // Calculate distance change (for zoom)
+                    const distanceChange = Math.abs(currentDistance - this.touchStartDistance);
+                    const distanceChangePercent = distanceChange / this.touchStartDistance;
+                    
+                    // Calculate center movement (for pan)
+                    const centerDeltaX = centerX - this.twoFingerPanStart.x;
+                    const centerDeltaY = centerY - this.twoFingerPanStart.y;
+                    const centerMovement = Math.hypot(centerDeltaX, centerDeltaY);
+                    
+                    // Determine if it's a pinch (zoom) or pan based on movement
+                    // If distance changes more than 5%, it's a pinch
+                    if (distanceChangePercent > 0.05 || !this.isTwoFingerPanning) {
+                        // Pinch-to-zoom
+                        const scale = currentDistance / this.touchStartDistance;
+                        let newZoom = this.lastZoomLevel * scale;
+                        newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, newZoom));
+                        this.zoomLevel = newZoom;
+                        
+                        if (this.zoomLevel <= 1) {
+                            this.panX = 0;
+                            this.panY = 0;
+                            this.twoFingerPanStart = { x: centerX, y: centerY };
+                            this.lastPanX = 0;
+                            this.lastPanY = 0;
+                        }
+                        
+                        // If center moved significantly while pinching, also pan
+                        if (centerMovement > 10) {
+                            this.isTwoFingerPanning = true;
+                            this.panX = this.lastPanX + centerDeltaX;
+                            this.panY = this.lastPanY + centerDeltaY;
+                        }
+                    } else if (centerMovement > 5) {
+                        // Two-finger panning (distance stays same, center moves)
+                        this.isTwoFingerPanning = true;
+                        this.panX = this.lastPanX + centerDeltaX;
+                        this.panY = this.lastPanY + centerDeltaY;
+                    }
+                    
+                    this.applyTransform();
+                }
+                e.preventDefault();
+                return;
+            }
+            
+            if (!this.isDragging && !this.isPanning) return;
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const deltaX = clientX - this.lastX;
-            const now = performance.now();
-            const dt = Math.max(1, now - this.lastMoveTs);
-            this.velocityX = deltaX / dt;
-            this.lastMoveTs = now;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            if (this.isPanning) {
+                // Panning mode (middle button on desktop)
+                const deltaX = clientX - this.startX;
+                const deltaY = clientY - this.startY;
+                this.panX = this.lastPanX + deltaX;
+                this.panY = this.lastPanY + deltaY;
+                this.applyTransform();
+            } else {
+                // Normal rotation mode
+                const deltaX = clientX - this.lastX;
+                const now = performance.now();
+                const dt = Math.max(1, now - this.lastMoveTs);
+                this.velocityX = deltaX / dt;
+                this.lastMoveTs = now;
 
-            this.lastX = clientX;
-            const sensitivity = 0.5;
-            this.rotation += deltaX * sensitivity;
-            this.updateFrameFromRotation();
+                this.lastX = clientX;
+                const sensitivity = 0.5;
+                this.rotation += deltaX * sensitivity;
+                this.updateFrameFromRotation();
+            }
             e.preventDefault();
         }
 
-        handleEnd() {
-            if (!this.isDragging) return;
-            this.isDragging = false;
-            this.container.style.cursor = 'grab';
-            this.applyMomentum();
+        handleEnd(e) {
+            const isTouch = e.changedTouches && e.changedTouches.length > 0;
+            
+            // Reset 2-finger touch state
+            if (e.touches && e.touches.length < 2) {
+                this.touchStartDistance = 0;
+                this.twoFingerPanStart = null;
+                this.isTwoFingerPanning = false;
+            }
+            
+            // Double-tap detection for mobile (single finger only)
+            if (isTouch && e.changedTouches.length === 1 && !this.isTwoFingerPanning) {
+                const touch = e.changedTouches[0];
+                const currentTime = performance.now();
+                const tapPos = { x: touch.clientX, y: touch.clientY };
+                
+                if (this.lastTapTime && this.lastTapPos) {
+                    const timeDiff = currentTime - this.lastTapTime;
+                    const distance = Math.hypot(tapPos.x - this.lastTapPos.x, tapPos.y - this.lastTapPos.y);
+                    
+                    // Check if it's a double-tap (within time and distance thresholds)
+                    if (timeDiff < this.doubleTapDelay && distance < this.doubleTapMaxDistance) {
+                        // Double-tap detected - reset position
+                        this.resetPosition();
+                        this.lastTapTime = 0;
+                        this.lastTapPos = null;
+                        
+                        // Prevent any drag/momentum
+                        this.isDragging = false;
+                        this.isPanning = false;
+                        this.cancelMomentum();
+                        return;
+                    }
+                }
+                
+                // Store this tap for next comparison
+                this.lastTapTime = currentTime;
+                this.lastTapPos = tapPos;
+            }
+            
+            if (this.isPanning) {
+                // Check if middle button was clicked without much movement (single-click reset)
+                if (this.middleClickStart) {
+                    const currentTime = performance.now();
+                    const timeDiff = currentTime - this.middleClickStart.time;
+                    const movement = Math.hypot(
+                        (e.clientX || this.startX) - this.middleClickStart.x,
+                        (e.clientY || this.startY) - this.middleClickStart.y
+                    );
+                    
+                    // If clicked quickly (< 200ms) and didn't move much (< 5px), treat as reset
+                    if (timeDiff < 200 && movement < 5) {
+                        this.resetPosition();
+                    }
+                    this.middleClickStart = null;
+                }
+                
+                this.isPanning = false;
+                this.container.style.cursor = 'grab';
+            } else if (this.isDragging) {
+                this.isDragging = false;
+                this.container.style.cursor = 'grab';
+                this.applyMomentum();
+            }
+        }
+
+        handleWheel(e) {
+            e.preventDefault();
+            const delta = e.deltaY;
+            const zoomSensitivity = 0.001;
+            const zoomChange = -delta * zoomSensitivity;
+            
+            let newZoom = this.zoomLevel + zoomChange;
+            newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, newZoom));
+            
+            if (newZoom !== this.zoomLevel) {
+                this.zoomLevel = newZoom;
+                // Reset pan when zooming out to level 1 or below
+                if (this.zoomLevel <= 1) {
+                    this.panX = 0;
+                    this.panY = 0;
+                }
+                this.applyTransform();
+            }
         }
 
         applyMomentum() {
@@ -298,7 +496,6 @@
             if (targetFrame !== this.currentFrame) {
                 this.currentFrame = targetFrame;
                 this.updateImage(targetFrame);
-                this.updateFrameInfo();
             }
         }
 
@@ -316,11 +513,6 @@
             }
         }
 
-        updateFrameInfo() {
-            if (!this.frameInfo) return;
-            const idx = (this.currentFrame - this.startFrame) + 1;
-            this.frameInfo.textContent = `Frame ${idx} / ${this.totalFrames}`;
-        }
 
         getImageUrl(frameNumber) {
             if (this.usesFrameUrls) {
@@ -332,45 +524,87 @@
             return `${this.imagePath}${separator}${frameNum}.${this.imageFormat}`;
         }
 
-        toggleAutoRotate() {
-            if (this.autoRotateInterval) {
-                this.stopAutoRotate();
+
+
+        applyTransform() {
+            if (!this.imageElement) return;
+            const transform = `scale(${this.zoomLevel}) translate(${this.panX / this.zoomLevel}px, ${this.panY / this.zoomLevel}px)`;
+            this.imageElement.style.transform = transform;
+        }
+
+        toggleFullscreen() {
+            if (!this.isFullscreen) {
+                // Enter fullscreen
+                const elem = this.container;
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen();
+                } else if (elem.webkitRequestFullscreen) {
+                    elem.webkitRequestFullscreen();
+                } else if (elem.mozRequestFullScreen) {
+                    elem.mozRequestFullScreen();
+                } else if (elem.msRequestFullscreen) {
+                    elem.msRequestFullscreen();
+                } else {
+                    // Fallback for browsers that don't support fullscreen API
+                    elem.classList.add('fullscreen');
+                    this.isFullscreen = true;
+                }
             } else {
-                this.startAutoRotate();
-            }
-        }
-        startAutoRotate() {
-            this.stopAutoRotate();
-            if (this.autoRotateBtn) {
-                this.autoRotateBtn.classList.add('active');
-                this.autoRotateBtn.textContent = 'Stop Auto Rotate';
-            }
-            this.autoRotateInterval = setInterval(() => {
-                this.rotation += this.autoRotateSpeed;
-                this.updateFrameFromRotation();
-            }, 16);
-        }
-        stopAutoRotate() {
-            if (this.autoRotateInterval) {
-                clearInterval(this.autoRotateInterval);
-                this.autoRotateInterval = null;
-                if (this.autoRotateBtn) {
-                    this.autoRotateBtn.classList.remove('active');
-                    this.autoRotateBtn.textContent = 'Auto Rotate';
+                // Exit fullscreen
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                } else {
+                    // Fallback
+                    this.container.classList.remove('fullscreen');
+                    this.isFullscreen = false;
                 }
             }
         }
-        resetRotation() {
-            this.stopAutoRotate();
+
+        handleFullscreenChange() {
+            const isCurrentlyFullscreen = !!(document.fullscreenElement || 
+                                             document.webkitFullscreenElement || 
+                                             document.mozFullScreenElement || 
+                                             document.msFullscreenElement);
+            
+            if (isCurrentlyFullscreen) {
+                this.container.classList.add('fullscreen');
+                this.isFullscreen = true;
+            } else {
+                this.container.classList.remove('fullscreen');
+                this.isFullscreen = false;
+            }
+        }
+
+        resetPosition() {
+            // Stop all ongoing interactions
             this.cancelMomentum();
+            this.isDragging = false;
+            this.isPanning = false;
+            this.isRotating = false;
+            this.touchStartDistance = 0;
+            
+            // Reset all transformations
             this.rotation = 0;
             this.currentFrame = this.startFrame;
+            this.zoomLevel = 1;
+            this.panX = 0;
+            this.panY = 0;
+            this.velocityX = 0;
+            
+            // Update display
             this.updateImage(this.startFrame);
-            this.updateFrameInfo();
+            this.applyTransform();
+            this.container.style.cursor = 'grab';
         }
 
         destroy() {
-            this.stopAutoRotate();
             this.cancelMomentum();
             if (this.container) {
                 document.removeEventListener('mousemove', this._handleMove);
