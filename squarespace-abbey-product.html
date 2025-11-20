@@ -7,6 +7,7 @@
     /* Wrapper for each instance */
     .rotator-wrap-embed {
         margin: 20px 0;
+        position: relative;
     }
 
     /* Container */
@@ -72,6 +73,128 @@
         margin: 0;
     }
 
+    /* Help icon and tooltip */
+    .rotator-help-icon-embed {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        width: 32px;
+        height: 32px;
+        background: transparent;
+        color: #555;
+        border: none;
+        border-radius: 50%;
+        font-size: 20px;
+        font-weight: bold;
+        cursor: pointer;
+        z-index: 25;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.4;
+        transition: opacity 0.3s ease, transform 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+    .rotator-help-icon-embed:hover {
+        opacity: 0.8;
+    }
+    .rotator-help-icon-embed:active,
+    .rotator-help-icon-embed.active {
+        opacity: 1;
+        transform: scale(0.95);
+    }
+
+    .rotator-help-tooltip-embed {
+        position: absolute;
+        top: 55px;
+        right: 15px;
+        background: white;
+        padding: 14px 18px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        z-index: 30;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+        max-width: 280px;
+        font-size: 14px;
+        line-height: 1.8;
+        color: #333;
+    }
+    .rotator-help-tooltip-embed.show {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+    .rotator-help-content-embed {
+        white-space: pre-line;
+    }
+
+    @media (max-width: 600px) {
+        .rotator-help-tooltip-embed,
+        .rotator-help-icon-embed {
+            display: none !important;
+        }
+    }
+
+    /* Mobile-only instructions */
+    .mobile-instructions-wrapper-embed {
+        display: none;
+        margin-top: 15px;
+    }
+
+    @media (max-width: 600px) {
+        .mobile-instructions-wrapper-embed {
+            display: block;
+        }
+    }
+
+    .mobile-help-button-embed {
+        width: 40px;
+        height: 40px;
+        background: transparent;
+        color: #555;
+        border: none;
+        border-radius: 50%;
+        font-size: 20px;
+        font-weight: bold;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        opacity: 0.4;
+        transition: opacity 0.3s ease, transform 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-help-button-embed:active,
+    .mobile-help-button-embed.open {
+        opacity: 1;
+        transform: scale(0.95);
+    }
+
+    .mobile-instructions-content-embed {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s ease, padding 0.4s ease, margin 0.4s ease;
+        padding: 0 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 2;
+        color: #333;
+        text-align: center;
+    }
+
+    .mobile-instructions-content-embed.show {
+        max-height: 300px;
+        padding: 20px;
+        margin-top: 10px;
+    }
+
 </style>
 
 <div class="rotator-wrap-embed rotator-abbey" aria-label="360 degree product viewer">
@@ -80,6 +203,20 @@
         <div class="rotator-overlay-embed">
             <div class="loading-indicator-embed">Loading...</div>
         </div>
+    </div>
+    <button class="rotator-help-icon-embed" type="button" aria-label="Show controls">?</button>
+    <div class="rotator-help-tooltip-embed">
+        <div class="rotator-help-content-embed"></div>
+    </div>
+</div>
+
+<div class="mobile-instructions-wrapper-embed">
+    <button class="mobile-help-button-embed" type="button" aria-label="Show mobile controls">?</button>
+    <div class="mobile-instructions-content-embed">
+        <strong>Drag</strong> - Rotate<br>
+        <strong>Pinch</strong> - Zoom<br>
+        <strong>Two fingers</strong> - Pan<br>
+        <strong>Double tap</strong> - Reset
     </div>
 </div>
 
@@ -104,6 +241,9 @@
             this.container = this.rootEl.querySelector('.rotator-360-embed');
             this.imageElement = this.container ? this.container.querySelector('.rotatorImage-embed') : null;
             this.overlay = this.container ? this.container.querySelector('.rotator-overlay-embed') : null;
+            this.helpIcon = this.rootEl.querySelector('.rotator-help-icon-embed');
+            this.helpTooltip = this.rootEl.querySelector('.rotator-help-tooltip-embed');
+            this.helpContent = this.rootEl.querySelector('.rotator-help-content-embed');
             this.currentFrame = this.startFrame;
 
             this.isDragging = false;
@@ -149,6 +289,10 @@
             this.touchStartDistance = 0;
             this.lastZoomLevel = 1;
 
+            // Help tooltip state
+            this.tooltipVisible = false;
+            this.isTouchDevice = false;
+
             this.init();
         }
 
@@ -159,6 +303,7 @@
             }
             this.preloadImages();
             this.setupEventListeners();
+            this.setupHelpTooltip();
         }
 
         preloadImages() {
@@ -202,7 +347,9 @@
             this.container.addEventListener('touchstart', this._handleStart, { passive: false });
             document.addEventListener('touchmove', this._handleMove, { passive: false });
             document.addEventListener('touchend', this._handleEnd);
-            this.container.addEventListener('contextmenu', (e) => e.preventDefault());
+            this.container.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+            });
             this.container.addEventListener('wheel', this._handleWheel, { passive: false });
 
             // Fullscreen change event
@@ -244,15 +391,22 @@
             
             // Determine mode based on mouse button
             // Left button (0) or touch = rotation
-            // Middle button (1) = reset (single click) or panning (drag)
+            // Middle button (1) = reset (single click)
+            // Right button (2) = panning
             const button = isTouch ? 0 : e.button;
             const currentTime = performance.now();
             
             // Middle button - single click for reset
             if (button === 1) {
+                this.middleClickStart = { x: clientX, y: clientY, time: currentTime };
+                e.preventDefault();
+                return;
+            }
+            
+            // Right button - panning mode
+            if (button === 2) {
                 this.isPanning = true;
                 this.isRotating = false;
-                this.middleClickStart = { x: clientX, y: clientY, time: currentTime };
                 this.startX = clientX;
                 this.startY = clientY;
                 this.lastPanX = this.panX;
@@ -414,23 +568,27 @@
                 this.lastTapPos = tapPos;
             }
             
-            if (this.isPanning) {
-                // Check if middle button was clicked without much movement (single-click reset)
-                if (this.middleClickStart) {
-                    const currentTime = performance.now();
-                    const timeDiff = currentTime - this.middleClickStart.time;
-                    const movement = Math.hypot(
-                        (e.clientX || this.startX) - this.middleClickStart.x,
-                        (e.clientY || this.startY) - this.middleClickStart.y
-                    );
-                    
-                    // If clicked quickly (< 200ms) and didn't move much (< 5px), treat as reset
-                    if (timeDiff < 200 && movement < 5) {
-                        this.resetPosition();
-                    }
-                    this.middleClickStart = null;
-                }
+            // Check if middle button was clicked (single-click reset)
+            if (this.middleClickStart && (e.button === 1 || e.button === undefined)) {
+                const currentTime = performance.now();
+                const currentX = e.clientX !== undefined ? e.clientX : this.middleClickStart.x;
+                const currentY = e.clientY !== undefined ? e.clientY : this.middleClickStart.y;
+                const timeDiff = currentTime - this.middleClickStart.time;
+                const movement = Math.hypot(
+                    currentX - this.middleClickStart.x,
+                    currentY - this.middleClickStart.y
+                );
                 
+                // If clicked quickly (< 300ms) and didn't move much (< 5px), treat as reset
+                if (timeDiff < 300 && movement < 5) {
+                    this.resetPosition();
+                }
+                this.middleClickStart = null;
+                e.preventDefault();
+                return;
+            }
+            
+            if (this.isPanning) {
                 this.isPanning = false;
                 this.container.style.cursor = 'grab';
             } else if (this.isDragging) {
@@ -604,6 +762,75 @@
             this.container.style.cursor = 'grab';
         }
 
+        setupHelpTooltip() {
+            if (!this.helpIcon || !this.helpTooltip || !this.helpContent) return;
+
+            // Detect if touch device
+            this.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+            // Skip setup for touch devices (mobile)
+            if (this.isTouchDevice) return;
+
+            // Desktop-only instructions
+            const instructions = 'Left click - Rotate\nRight click - Pan\nMiddle click - Reset\nWheel - Zoom\nDouble-click - Fullscreen';
+
+            this.helpContent.textContent = instructions;
+
+            // Prevent help icon from triggering rotation
+            this.helpIcon.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+            });
+            this.helpIcon.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+            }, { passive: false });
+
+            // Toggle tooltip visibility on help icon click
+            this.helpIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                this.tooltipVisible = !this.tooltipVisible;
+                if (this.tooltipVisible) {
+                    this.helpTooltip.classList.add('show');
+                    this.helpIcon.classList.add('active');
+                } else {
+                    this.helpTooltip.classList.remove('show');
+                    this.helpIcon.classList.remove('active');
+                }
+            });
+
+            // Prevent tooltip clicks from closing it or triggering rotation
+            this.helpTooltip.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
+            this.helpTooltip.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+            }, { passive: true });
+
+            // Hide tooltip on any user interaction with the viewer
+            this._hideTooltip = (e) => {
+                // Don't hide if clicking on help icon or tooltip
+                if (e.target === this.helpIcon || 
+                    this.helpIcon.contains(e.target) ||
+                    e.target === this.helpTooltip || 
+                    this.helpTooltip.contains(e.target)) {
+                    return;
+                }
+                
+                if (this.tooltipVisible) {
+                    this.tooltipVisible = false;
+                    this.helpTooltip.classList.remove('show');
+                    this.helpIcon.classList.remove('active');
+                }
+            };
+
+            // Add listeners to hide tooltip on interaction
+            this.container.addEventListener('mousedown', this._hideTooltip);
+            this.container.addEventListener('touchstart', this._hideTooltip);
+            this.container.addEventListener('wheel', this._hideTooltip);
+        }
+
         destroy() {
             this.cancelMomentum();
             if (this.container) {
@@ -611,6 +838,13 @@
                 document.removeEventListener('mouseup', this._handleEnd);
                 document.removeEventListener('touchmove', this._handleMove);
                 document.removeEventListener('touchend', this._handleEnd);
+                
+                // Clean up help tooltip listeners
+                if (this._hideTooltip) {
+                    this.container.removeEventListener('mousedown', this._hideTooltip);
+                    this.container.removeEventListener('touchstart', this._hideTooltip);
+                    this.container.removeEventListener('wheel', this._hideTooltip);
+                }
             }
         }
     }
@@ -646,6 +880,34 @@
         document.addEventListener('DOMContentLoaded', initRotators);
     } else {
         initRotators();
+    }
+
+    // Mobile instructions toggle
+    function initMobileHelp() {
+        const helpButton = document.querySelector('.mobile-help-button-embed');
+        const helpContent = document.querySelector('.mobile-instructions-content-embed');
+        
+        if (helpButton && helpContent) {
+            helpButton.addEventListener('click', function() {
+                const isOpen = helpContent.classList.contains('show');
+                
+                if (isOpen) {
+                    helpContent.classList.remove('show');
+                    helpButton.classList.remove('open');
+                    helpButton.setAttribute('aria-label', 'Show mobile controls');
+                } else {
+                    helpContent.classList.add('show');
+                    helpButton.classList.add('open');
+                    helpButton.setAttribute('aria-label', 'Hide mobile controls');
+                }
+            });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMobileHelp);
+    } else {
+        initMobileHelp();
     }
 })();
 </script>
